@@ -134,10 +134,26 @@ func lb(w http.ResponseWriter, r *http.Request) {
 
 // isAlive checks whether a backend is Alive by establishing a TCP connection
 func isBackendAlive(u *url.URL) bool {
+	strCheckMaster := "info"
 	timeout := 2 * time.Second
 	conn, err := net.DialTimeout("tcp", u.Host, timeout)
 	if err != nil {
 		log.Println("Site unreachable, error: ", err)
+		return false
+	}
+	_, err = conn.Write([]byte(strCheckMaster))
+	if err != nil {
+		log.Println("Could not send message to server, error: ", err)
+		return false
+	}
+	reply := make([]byte, 1024)
+	_, err = conn.Read(reply)
+	if err != nil {
+		log.Println("Could not receive message from server, error: ", err)
+		return false
+	}
+	if !strings.Contains(string(reply[:]), "role:master") {
+		log.Println("Server is not master")
 		return false
 	}
 	_ = conn.Close()
